@@ -1,4 +1,4 @@
-package org.example;
+package tvdsl.hw2;
 
 public class Token {
     public final int type;

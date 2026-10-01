@@ -1,4 +1,4 @@
-package org.example;
+package tvdsl.hw2;
 
 public class TokenType {
     public static final int FUNCTION = 1;

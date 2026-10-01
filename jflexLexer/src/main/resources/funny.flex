@@ -1,6 +1,6 @@
 package org.example;
 
-import org.example.Token;
+import tvdsl.hw2.Token;
 import org.example.TokenType;
 
 %%

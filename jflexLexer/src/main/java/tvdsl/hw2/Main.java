@@ -1,12 +1,12 @@
-package org.example;
+package tvdsl.hw2;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-
+import tvdsl.hw2.Token;
 
 public class Main {
     public static void main(String[] args) {
-        String inputFileName = "src/main/resources/test.txt";
+        String inputFileName = "/home/yana/NSU/TV/tvdsl_2026/jflexLexer/src/main/resources/test.txt";
         try {
             Reader reader = new InputStreamReader(new FileInputStream(inputFileName), StandardCharsets.US_ASCII);
             JFlexLexer lexer = new JFlexLexer(reader);
