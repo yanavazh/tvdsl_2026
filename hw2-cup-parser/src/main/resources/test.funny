@@ -1,0 +1,15 @@
+foo(a: int) returns r: int, q: int
+    requires a > 0
+    ensures r >= a
+    {
+        r = a;
+        q = 0;
+        if (a > 10) {
+            q = 1;
+        } else {
+            q = 2;
+        }
+        while (r < 100) invariant (r > 0) {
+            r = r + 1;
+        }
+    }

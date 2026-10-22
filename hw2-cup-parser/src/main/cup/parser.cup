@@ -1,0 +1,250 @@
+package tvdsl.hw2;
+
+import java_cup.runtime.*;
+import tvdsl.hw2.ast.*;
+import java.util.*;
+
+parser code {:
+    public void syntax_error(Symbol cur_token) {
+        report_error("Syntax error at line " + (cur_token.left+1) + ", column " + cur_token.right, null);
+    }
+:};
+
+terminal LPAREN, RPAREN, COMMA, COLON, SEMI, ASSIGN;
+terminal LBRACE, RBRACE;
+terminal LBRACKET, RBRACKET;
+terminal IF, ELSE, WHILE, TRUE, FALSE, NOT, AND, OR, IMPLIES;
+terminal PLUS, MINUS, TIMES, DIVIDE;
+terminal EQ, NEQ, GE, LE, GT, LT;
+terminal RETURNS, USES, REQUIRES, ENSURES, INVARIANT, ASSERT, ASSUME;
+terminal FORALL, EXISTS;
+terminal String IDENTIFIER;
+terminal String VARIABLE_TYPE;
+terminal Integer NUMBER;
+
+non terminal Program mostAbstract;
+non terminal Function function;
+non terminal VariableDef variableDef;
+non terminal List variableDefList;
+non terminal List variableDefOptList;
+non terminal String variableType;
+non terminal LocalVarDef localVarDef;
+non terminal List localVarDefList;
+non terminal List usesOpt;
+non terminal List requiresOpt;
+non terminal List ensuresOpt;
+non terminal List invariantOpt;
+
+non terminal Statement statement;
+non terminal List statementList;
+non terminal Statement block;
+non terminal Statement assignment;
+non terminal Statement conditional;
+non terminal Statement whileLoop;
+non terminal Statement assertStmt;
+non terminal Statement assumeStmt;
+
+non terminal Expr expr;
+non terminal Expr term;
+non terminal List exprList;
+non terminal List exprListOpt;
+non terminal FunctionCall functionCall;
+non terminal ArrayAccess arrayAccess;
+
+non terminal Node condition;
+non terminal Compare comparison;
+
+non terminal Node predicate;
+non terminal Node quantifier;
+
+precedence left IMPLIES;
+precedence left OR;
+precedence left AND;
+precedence left NOT;
+precedence left EQ, NEQ, GE, LE, GT, LT;
+precedence left PLUS, MINUS;
+precedence left TIMES, DIVIDE;
+precedence nonassoc ELSE;
+
+start with mostAbstract;
+
+mostAbstract ::= function:f
+    {: RESULT = new Program((Function)f); :}
+  ;
+
+function ::= IDENTIFIER:i LPAREN variableDefOptList:p RPAREN
+             requiresOpt:req
+             RETURNS variableDefList:r
+             ensuresOpt:ens
+             usesOpt:u
+             statement:s
+    {: RESULT = new Function(i, (List)p, (List)r, (List)u, (Statement)s); :}
+  ;
+
+requiresOpt ::= /* empty */
+    {: RESULT = new ArrayList(); :}
+  | REQUIRES predicate:p
+    {: List list = new ArrayList(); list.add(p); RESULT = list; :}
+  ;
+
+ensuresOpt ::= /* empty */
+    {: RESULT = new ArrayList(); :}
+  | ENSURES predicate:p
+    {: List list = new ArrayList(); list.add(p); RESULT = list; :}
+  ;
+
+invariantOpt ::= /* empty */
+    {: RESULT = new ArrayList(); :}
+  | INVARIANT predicate:p
+    {: List list = new ArrayList(); list.add(p); RESULT = list; :}
+  ;
+
+usesOpt ::= /* empty */
+    {: RESULT = new ArrayList(); :}
+  | USES localVarDefList:l
+    {: RESULT = l; :}
+  ;
+
+variableDefOptList ::= /* empty */
+    {: RESULT = new ArrayList(); :}
+  | variableDefList:l
+    {: RESULT = l; :}
+  ;
+
+variableDefList ::= variableDef:v
+    {: List list = new ArrayList(); list.add(v); RESULT = list; :}
+  | variableDefList:l COMMA variableDef:v
+    {: ((List)l).add(v); RESULT = l; :}
+  ;
+
+variableDef ::= IDENTIFIER:i COLON variableType:t
+    {: RESULT = new VariableDef(i, (String)t); :}
+  ;
+
+localVarDefList ::= localVarDef:v
+    {: List list = new ArrayList(); list.add(v); RESULT = list; :}
+  | localVarDefList:l COMMA localVarDef:v
+    {: ((List)l).add(v); RESULT = l; :}
+  ;
+
+localVarDef ::= IDENTIFIER:i
+    {: RESULT = new LocalVarDef(i, null); :}
+  | IDENTIFIER:i COLON variableType:t
+    {: RESULT = new LocalVarDef(i, (String)t); :}
+  ;
+
+variableType ::= VARIABLE_TYPE:t
+    {: RESULT = t; :}
+  ;
+
+statement ::= assignment:a {: RESULT = a; :}
+  | conditional:c {: RESULT = c; :}
+  | whileLoop:w {: RESULT = w; :}
+  | block:b {: RESULT = b; :}
+  | assertStmt:a {: RESULT = a; :}
+  | assumeStmt:a {: RESULT = a; :}
+  ;
+
+statementList ::= /* empty */
+    {: RESULT = new ArrayList(); :}
+  | statementList:l statement:s
+    {: ((List)l).add(s); RESULT = l; :}
+  ;
+
+assignment ::= IDENTIFIER:i ASSIGN expr:e SEMI
+    {: RESULT = Assign.var(i, (Expr)e); :}
+  | arrayAccess:a ASSIGN expr:e SEMI
+    {: ArrayAccess arr = (ArrayAccess)a; RESULT = Assign.array(arr.name, arr.index, (Expr)e); :}
+  | IDENTIFIER:i COMMA IDENTIFIER:i2 ASSIGN functionCall:fc SEMI
+    {: List list = new ArrayList(); list.add(i); list.add(i2); RESULT = new AssignMulti(list, fc); :}
+  ;
+
+conditional ::= IF LPAREN condition:c RPAREN statement:t
+    {: RESULT = new If((Node)c, (Statement)t, null); :}
+  | IF LPAREN condition:c RPAREN statement:t ELSE statement:e
+    {: RESULT = new If((Node)c, (Statement)t, (Statement)e); :}
+  ;
+
+whileLoop ::= WHILE LPAREN condition:c RPAREN invariantOpt:inv statement:b
+    {: RESULT = new While((Node)c, (List)inv, (Statement)b); :}
+  ;
+
+block ::= LBRACE statementList:l RBRACE
+    {: RESULT = new Block((List)l); :}
+  ;
+
+assertStmt ::= ASSERT predicate:p SEMI
+    {: RESULT = new Assert((Node)p); :}
+  ;
+
+assumeStmt ::= ASSUME predicate:p SEMI
+    {: RESULT = new Assume((Node)p); :}
+  ;
+
+expr ::= expr:l PLUS expr:r {: RESULT = new BinOp("+", (Expr)l, (Expr)r); :}
+  | expr:l MINUS expr:r {: RESULT = new BinOp("-", (Expr)l, (Expr)r); :}
+  | expr:l TIMES expr:r {: RESULT = new BinOp("*", (Expr)l, (Expr)r); :}
+  | expr:l DIVIDE expr:r {: RESULT = new BinOp("/", (Expr)l, (Expr)r); :}
+  | term:t {: RESULT = t; :}
+  ;
+
+term ::= functionCall:c {: RESULT = c; :}
+  | arrayAccess:a {: RESULT = a; :}
+  | NUMBER:n {: RESULT = new tvdsl.hw2.ast.Number((Integer)n); :}
+  | IDENTIFIER:i {: RESULT = new Var(i); :}
+  | MINUS term:t {: RESULT = new BinOp("*", new tvdsl.hw2.ast.Number(-1), (Expr)t); :}
+  | LPAREN expr:e RPAREN {: RESULT = e; :}
+  ;
+
+exprList ::= expr:e
+    {: List list = new ArrayList(); list.add(e); RESULT = list; :}
+  | exprList:l COMMA expr:e
+    {: ((List)l).add(e); RESULT = l; :}
+  ;
+
+exprListOpt ::= /* empty */
+    {: RESULT = new ArrayList(); :}
+  | exprList:l {: RESULT = l; :}
+  ;
+
+functionCall ::= IDENTIFIER:i LPAREN exprListOpt:l RPAREN
+    {: RESULT = new FunctionCall(i, (List)l); :}
+  ;
+
+arrayAccess ::= IDENTIFIER:i LBRACKET expr:e RBRACKET
+    {: RESULT = new ArrayAccess(i, (Expr)e); :}
+  ;
+
+condition ::= TRUE {: RESULT = new BoolLit(true); :}
+  | FALSE {: RESULT = new BoolLit(false); :}
+  | comparison:c {: RESULT = c; :}
+  | NOT condition:c {: RESULT = new Not((Node)c); :}
+  | condition:l AND condition:r {: RESULT = new LogicOp("and", (Node)l, (Node)r); :}
+  | condition:l OR condition:r {: RESULT = new LogicOp("or", (Node)l, (Node)r); :}
+  | condition:l IMPLIES condition:r {: RESULT = new LogicOp("->", (Node)l, (Node)r); :}
+  | LPAREN condition:c RPAREN {: RESULT = c; :}
+  ;
+
+comparison ::= expr:l EQ expr:r {: RESULT = new Compare("==", (Expr)l, (Expr)r); :}
+  | expr:l NEQ expr:r {: RESULT = new Compare("!=", (Expr)l, (Expr)r); :}
+  | expr:l GE expr:r {: RESULT = new Compare(">=", (Expr)l, (Expr)r); :}
+  | expr:l LE expr:r {: RESULT = new Compare("<=", (Expr)l, (Expr)r); :}
+  | expr:l GT expr:r {: RESULT = new Compare(">", (Expr)l, (Expr)r); :}
+  | expr:l LT expr:r {: RESULT = new Compare("<", (Expr)l, (Expr)r); :}
+  ;
+
+predicate ::= quantifier:q {: RESULT = q; :}
+  | TRUE {: RESULT = new BoolLit(true); :}
+  | FALSE {: RESULT = new BoolLit(false); :}
+  | comparison:c {: RESULT = c; :}
+  | NOT predicate:p {: RESULT = new Not((Node)p); :}
+  | predicate:l AND predicate:r {: RESULT = new LogicOp("and", (Node)l, (Node)r); :}
+  | predicate:l OR predicate:r {: RESULT = new LogicOp("or", (Node)l, (Node)r); :}
+  | LPAREN predicate:p RPAREN {: RESULT = p; :}
+  ;
+
+quantifier ::= FORALL LPAREN variableDef:v SEMI predicate:p RPAREN
+    {: RESULT = new Quantifier("forall", (VariableDef)v, (Node)p); :}
+  | EXISTS LPAREN variableDef:v SEMI predicate:p RPAREN
+    {: RESULT = new Quantifier("exists", (VariableDef)v, (Node)p); :}
+  ;
