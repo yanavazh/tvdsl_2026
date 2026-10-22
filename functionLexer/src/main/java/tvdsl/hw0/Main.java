@@ -1,4 +1,4 @@
-package tvdsl.hw1;
+package tvdsl.hw0;
 
 public class Main {
     public static void main(String[] args) {

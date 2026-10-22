@@ -1,4 +1,4 @@
-package tvdsl.hw1;
+package tvdsl.hw0;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;

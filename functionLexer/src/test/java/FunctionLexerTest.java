@@ -1,4 +1,4 @@
-import tvdsl.hw1.FunctionLexer;
+import tvdsl.hw0.FunctionLexer;
 
 import java.io.IOException;
 import java.nio.file.Files;
