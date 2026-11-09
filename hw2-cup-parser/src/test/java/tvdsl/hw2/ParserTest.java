@@ -69,6 +69,9 @@ public class ParserTest {
                         "    params:\n" +
                         "    returns:\n" +
                         "      VarDef r : int\n" +
+                        "    uses:\n" +
+                        "      LocalVarDef k : int\n" +
+                        "      LocalVarDef p\n" +
                         "    body:\n" +
                         "      Block\n" +
                         "        Assign[VAR] r\n" +

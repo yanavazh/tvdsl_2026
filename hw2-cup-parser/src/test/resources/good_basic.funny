@@ -1,3 +1,5 @@
-main() returns r:int {
+main() returns r:int
+uses k: int, p
+{
     r = 1 + 2 * 3;
 }

@@ -16,7 +16,11 @@ public class PrintVisitor extends Visitor<Void> {
     @Override
     public Void visitProgram(Program p) {
         line("Program");
-        depth++; p.func.accept(this); depth--;
+        depth++;
+        for (Function f : p.functions) {
+            f.accept(this);
+        }
+        depth--;
         return null;
     }
 

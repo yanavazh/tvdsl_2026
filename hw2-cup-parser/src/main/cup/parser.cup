@@ -22,8 +22,9 @@ terminal String IDENTIFIER;
 terminal String VARIABLE_TYPE;
 terminal Integer NUMBER;
 
-non terminal Program mostAbstract;
+non terminal Program program;
 non terminal Function function;
+non terminal List functionList;
 non terminal VariableDef variableDef;
 non terminal List variableDefList;
 non terminal List variableDefOptList;
@@ -66,10 +67,16 @@ precedence left PLUS, MINUS;
 precedence left TIMES, DIVIDE;
 precedence nonassoc ELSE;
 
-start with mostAbstract;
+start with program;
 
-mostAbstract ::= function:f
-    {: RESULT = new Program((Function)f); :}
+program ::= functionList:l
+    {: RESULT = new Program((List<Function>)l); :}
+  ;
+
+functionList ::= function:f
+    {: List list = new ArrayList(); list.add(f); RESULT = list; :}
+  | functionList:l function:f
+    {: ((List)l).add(f); RESULT = l; :}
   ;
 
 function ::= IDENTIFIER:i LPAREN variableDefOptList:p RPAREN
@@ -208,7 +215,9 @@ exprListOpt ::= /* empty */
   ;
 
 functionCall ::= IDENTIFIER:i LPAREN exprListOpt:l RPAREN
-    {: RESULT = new FunctionCall(i, (List)l); :}
+    {:
+    RESULT = new FunctionCall(i, (List)l);
+    :}
   ;
 
 arrayAccess ::= IDENTIFIER:i LBRACKET expr:e RBRACKET
