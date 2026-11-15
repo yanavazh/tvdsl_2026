@@ -21,7 +21,7 @@ public class TypeCheckVisitor extends Visitor<Type> {
 
     @Override
     public Type visitProgram(Program p) {
-        table.pushScope(); // модульный scope
+        table.pushScope();
 
         for (Function f : p.functions) {
             List<Type> params = new ArrayList<>();
@@ -96,7 +96,6 @@ public class TypeCheckVisitor extends Visitor<Type> {
 
         Type targetType;
         if (a.kind == Assign.Kind.ARRAY) {
-            // Присваивание в b[i] — левая часть int
             if (s.type != Type.INT_ARRAY) {
                 error(a, "'" + a.varName + "' is not an array");
                 return null;
@@ -109,7 +108,7 @@ public class TypeCheckVisitor extends Visitor<Type> {
         } else {
             targetType = s.type;
             if (targetType == null) {
-                s.type = exprType; // вывод типа
+                s.type = exprType;
                 return null;
             }
         }
@@ -224,7 +223,7 @@ public class TypeCheckVisitor extends Visitor<Type> {
                         + "': expected " + pt + ", got " + at);
             }
         }
-        Type ret = s.returnTypes.isEmpty() ? Type.ERROR : s.returnTypes.get(0);
+        Type ret = s.returnTypes.isEmpty() ? Type.ERROR : s.returnTypes.getFirst();
         c.setType(ret);
         return ret;
     }

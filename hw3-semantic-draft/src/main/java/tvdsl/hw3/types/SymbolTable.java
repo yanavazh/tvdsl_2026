@@ -14,11 +14,24 @@ public class SymbolTable {
     }
 
     public void insert(Symbol s) {
+        if (scopes.isEmpty()) {
+            throw new IllegalStateException("insert called without pushScope");
+        }
         Map<String, Symbol> current = scopes.peek();
+
         if (current.containsKey(s.name)) {
             errors.add(new SemanticError(s.line, s.column,"Duplicate declaration of '" + s.name + "'"));
             return;
         }
+
+        for (Map<String, Symbol> scope : scopes) {
+            if (scope == current) continue;
+            if (scope.containsKey(s.name)) {
+                errors.add(new SemanticError(s.line, s.column,"Shadowing of '" + s.name + "' is forbidden"));
+                return;
+            }
+        }
+
         current.put(s.name, s);
     }
 
