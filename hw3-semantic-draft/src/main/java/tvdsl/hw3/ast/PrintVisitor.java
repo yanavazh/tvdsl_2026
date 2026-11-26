@@ -7,8 +7,21 @@ public class PrintVisitor extends Visitor<Void> {
     public String result() { return sb.toString(); }
 
     private void line(String text) {
-        for (int i = 0; i < depth; i++) sb.append("  ");
+        sb.repeat("  ", Math.max(0, depth));
         sb.append(text).append('\n');
+    }
+
+    private String typeToString(Object t) {
+        if (t == null) return null;
+        String s = t.toString();
+        return s.toLowerCase();
+    }
+
+    private String typeSuffix(Node n) {
+        if (n instanceof AnnotatedNode an && an.getType() != null) {
+            return " : " + typeToString(an.getType());
+        }
+        return "";
     }
 
     @Override
@@ -43,6 +56,13 @@ public class PrintVisitor extends Visitor<Void> {
             depth--;
         }
 
+        if (!f.ensures.isEmpty()) {
+            line("ensures:");
+            depth++;
+            for (Node ens : f.ensures) ens.accept(this);
+            depth--;
+        }
+
         if (!f.uses.isEmpty()) {
             line("uses:");
             depth++;
@@ -64,7 +84,11 @@ public class PrintVisitor extends Visitor<Void> {
 
     @Override
     public Void visitLocalVarDef(LocalVarDef v) {
-        line("LocalVarDef " + v.name + (v.type != null ? " : " + v.type : ""));
+        String t = v.type;
+        if (t == null && v.getType() != null) {
+            t = typeToString(v.getType());
+        }
+        line("LocalVarDef " + v.name + (t != null ? " : " + t : ""));
         return null;
     }
 
@@ -150,26 +174,26 @@ public class PrintVisitor extends Visitor<Void> {
 
     @Override
     public Void visitNumber(Number n) {
-        line("Num " + n.value);
+        line("Num " + n.value + typeSuffix(n));
         return null;
     }
 
     @Override
     public Void visitVar(Var v) {
-        line("Var " + v.name);
+        line("Var " + v.name + typeSuffix(v));
         return null;
     }
 
     @Override
     public Void visitBinOp(BinOp b) {
-        line("BinOp " + b.op);
+        line("BinOp " + b.op + typeSuffix(b));
         depth++; b.left.accept(this); b.right.accept(this); depth--;
         return null;
     }
 
     @Override
     public Void visitFunctionCall(FunctionCall c) {
-        line("Call " + c.name);
+        line("Call " + c.name + typeSuffix(c));
         depth++;
         for (Expr e : c.args) e.accept(this);
         depth--;
@@ -178,41 +202,41 @@ public class PrintVisitor extends Visitor<Void> {
 
     @Override
     public Void visitArrayAccess(ArrayAccess a) {
-        line("ArrayAccess " + a.name);
+        line("ArrayAccess " + a.name + typeSuffix(a));
         depth++; a.index.accept(this); depth--;
         return null;
     }
 
     @Override
     public Void visitBoolLit(BoolLit b) {
-        line("Bool " + b.value);
+        line("Bool " + b.value + typeSuffix(b));
         return null;
     }
 
     @Override
     public Void visitCompare(Compare c) {
-        line("Compare " + c.op);
+        line("Compare " + c.op + typeSuffix(c));
         depth++; c.left.accept(this); c.right.accept(this); depth--;
         return null;
     }
 
     @Override
     public Void visitLogicOp(LogicOp l) {
-        line("Logic " + l.op);
+        line("Logic " + l.op + typeSuffix(l));
         depth++; l.left.accept(this); l.right.accept(this); depth--;
         return null;
     }
 
     @Override
     public Void visitNot(Not n) {
-        line("Not");
+        line("Not" + typeSuffix(n));
         depth++; n.inner.accept(this); depth--;
         return null;
     }
 
     @Override
     public Void visitQuantifier(Quantifier q) {
-        line("Quant " + q.kind);
+        line("Quant " + q.kind + typeSuffix(q));
         depth++;
         q.variable.accept(this);
         q.body.accept(this);
@@ -222,7 +246,7 @@ public class PrintVisitor extends Visitor<Void> {
 
     @Override
     public Void visitFormulaRef(FormulaRef f) {
-        line("FormulaRef " + f.name);
+        line("FormulaRef " + f.name + typeSuffix(f));
         depth++;
         for (Expr e : f.args) e.accept(this);
         depth--;

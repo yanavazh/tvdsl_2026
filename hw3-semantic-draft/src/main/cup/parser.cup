@@ -201,9 +201,9 @@ expr ::= expr:l PLUS expr:r {: RESULT = new BinOp("+", (Expr)l, (Expr)r); :}
 
 term ::= functionCall:c {: RESULT = c; :}
   | arrayAccess:a {: RESULT = a; :}
-  | NUMBER:n {: RESULT = new tvdsl.hw3.ast.Number((Integer)n, 0, 0); :}
+  | NUMBER:n {: RESULT = new tvdsl.hw3.ast.Number((Integer)n, nleft, nright); :}
   | IDENTIFIER:i {: RESULT = new Var(i, ileft, iright); :}
-  | MINUS term:t {: RESULT = new BinOp("*", new tvdsl.hw3.ast.Number(-1, 0, 0), (Expr)t); :}
+  | MINUS:mn term:t {: RESULT = new BinOp("*", new tvdsl.hw3.ast.Number(-1, mnleft, mnright), (Expr)t); :}
   | LPAREN expr:e RPAREN {: RESULT = e; :}
   ;
 

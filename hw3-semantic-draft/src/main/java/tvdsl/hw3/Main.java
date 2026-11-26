@@ -25,17 +25,18 @@ public class Main {
             result = p.parse();
         } catch (Exception e) {
             System.err.println("Parsing failed: " + e.getMessage());
+            System.exit(1);
         }
 
         if (result != null && result.value instanceof Program) {
             Program prog = (Program) result.value;
 
+            TypeCheckVisitor checker = new TypeCheckVisitor();
+            prog.accept(checker);
+
             PrintVisitor printer = new PrintVisitor();
             prog.accept(printer);
             System.out.println(printer.result());
-
-            TypeCheckVisitor checker = new TypeCheckVisitor();
-            prog.accept(checker);
 
             List<SemanticError> errors = checker.getTable().getErrors();
             if (errors.isEmpty()) {
@@ -43,7 +44,10 @@ public class Main {
             } else {
                 System.out.println("Semantic errors (" + errors.size() + "):");
                 for (SemanticError e : errors) System.out.println("  " + e);
+                System.exit(1);
             }
+        } else {
+            System.exit(1);
         }
     }
 }

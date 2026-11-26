@@ -16,12 +16,23 @@ public class TypeCheckVisitor extends Visitor<Type> {
 
     private Type parseType(String t) {
         if (t == null) return null;
-        return t.equals("int[]") ? Type.INT_ARRAY : Type.INT;
+        if (t.equals("int[]")) return Type.INT_ARRAY;
+        if (t.equals("int")) return Type.INT;
+        return null;
+    }
+
+    private void registerBuiltins() {
+        List<Type> params = new ArrayList<>();
+        params.add(Type.INT_ARRAY);
+        List<Type> rets = new ArrayList<>();
+        rets.add(Type.INT);
+        table.insert(new Symbol("length", params, rets, 0, 0));
     }
 
     @Override
     public Type visitProgram(Program p) {
         table.pushScope();
+        registerBuiltins();
 
         for (Function f : p.functions) {
             List<Type> params = new ArrayList<>();
@@ -68,21 +79,28 @@ public class TypeCheckVisitor extends Visitor<Type> {
 
         f.body.accept(this);
 
+        for (LocalVarDef v : f.uses) {
+            Symbol s = table.lookup(v.name);
+            if (s != null && s.type != null && v.type == null) {
+                v.setType(s.type);
+            }
+        }
+
         table.popScope();
         return null;
     }
 
     @Override
     public Type visitBlock(Block b) {
-        table.pushScope();
         for (Statement s : b.stmts) s.accept(this);
-        table.popScope();
         return null;
     }
 
     @Override
     public Type visitAssign(Assign a) {
         Symbol s = table.lookup(a.varName);
+        Type exprType = a.expr.accept(this);
+
         if (s == null) {
             error(a, "Unknown identifier '" + a.varName + "'");
             return null;
@@ -91,11 +109,14 @@ public class TypeCheckVisitor extends Visitor<Type> {
             error(a, "Cannot assign to read-only '" + a.varName + "'");
         }
 
-        Type exprType = a.expr.accept(this);
         if (exprType == Type.ERROR) return null;
 
         Type targetType;
         if (a.kind == Assign.Kind.ARRAY) {
+            if (s.type == null) {
+                s.type = Type.INT_ARRAY;
+            }
+
             if (s.type != Type.INT_ARRAY) {
                 error(a, "'" + a.varName + "' is not an array");
                 return null;
@@ -160,7 +181,57 @@ public class TypeCheckVisitor extends Visitor<Type> {
 
     @Override
     public Type visitAssignMulti(AssignMulti a) {
-        a.call.accept(this);
+        Symbol s = table.lookup(a.call.name);
+
+        if (s == null || !"func".equals(s.kind)) {
+            error(a.call, "Unknown function '" + a.call.name + "'");
+            for (Expr arg : a.call.args) arg.accept(this);
+            a.call.setType(Type.ERROR);
+            return null;
+        }
+
+        if (a.call.args.size() != s.paramTypes.size()) {
+            error(a.call, "Function '" + a.call.name + "' expects " + s.paramTypes.size() + " args, got " + a.call.args.size());
+            for (Expr arg : a.call.args) arg.accept(this);
+            a.call.setType(Type.ERROR);
+            return null;
+        }
+
+        for (int i = 0; i < a.call.args.size(); i++) {
+            Type at = a.call.args.get(i).accept(this);
+            Type pt = s.paramTypes.get(i);
+            if (at != Type.ERROR && pt != at) {
+                error(a.call.args.get(i), "Arg #" + (i + 1) + " of '" + a.call.name + "': expected " + pt + ", got " + at);
+            }
+        }
+
+        if (a.vars.size() != s.returnTypes.size()) {
+            error(a, "Tuple assignment: " + a.vars.size() + " target(s) but function '" + a.call.name + "' returns " + s.returnTypes.size());
+            a.call.setType(Type.ERROR);
+            return null;
+        }
+
+        for (int i = 0; i < a.vars.size(); i++) {
+            String varName = a.vars.get(i);
+            Symbol target = table.lookup(varName);
+            if (target == null) {
+                error(a, "Unknown identifier '" + varName + "' in tuple assignment");
+                continue;
+            }
+            if (!target.mutable) {
+                error(a, "Cannot assign to read-only '" + varName + "'");
+            }
+            Type expected = s.returnTypes.get(i);
+            if (target.type == null) {
+                if (expected != Type.ERROR) {
+                    target.type = expected;
+                }
+            } else if (target.type != expected) {
+                error(a, "Tuple target '" + varName + "': expected " + target.type + ", got " + expected);
+            }
+        }
+
+        a.call.setType(Type.ERROR);
         return null;
     }
 
@@ -204,26 +275,36 @@ public class TypeCheckVisitor extends Visitor<Type> {
     @Override
     public Type visitFunctionCall(FunctionCall c) {
         Symbol s = table.lookup(c.name);
+
         if (s == null || !"func".equals(s.kind)) {
             error(c, "Unknown function '" + c.name + "'");
+            for (Expr arg : c.args) arg.accept(this);
             c.setType(Type.ERROR);
             return Type.ERROR;
         }
+
         if (c.args.size() != s.paramTypes.size()) {
-            error(c, "Function '" + c.name + "' expects " + s.paramTypes.size()
-                    + " args, got " + c.args.size());
+            error(c, "Function '" + c.name + "' expects " + s.paramTypes.size() + " args, got " + c.args.size());
+            for (Expr arg : c.args) arg.accept(this);
             c.setType(Type.ERROR);
             return Type.ERROR;
         }
+
         for (int i = 0; i < c.args.size(); i++) {
             Type at = c.args.get(i).accept(this);
             Type pt = s.paramTypes.get(i);
             if (at != Type.ERROR && pt != at) {
-                error(c.args.get(i), "Arg #" + (i+1) + " of '" + c.name
-                        + "': expected " + pt + ", got " + at);
+                error(c.args.get(i), "Arg #" + (i+1) + " of '" + c.name + "': expected " + pt + ", got " + at);
             }
         }
-        Type ret = s.returnTypes.isEmpty() ? Type.ERROR : s.returnTypes.getFirst();
+
+        if (s.returnTypes.size() != 1) {
+            error(c, "Function '" + c.name + "' returns " + s.returnTypes.size() + " values; use tuple assignment for multi-return");
+            c.setType(Type.ERROR);
+            return Type.ERROR;
+        }
+
+        Type ret = s.returnTypes.getFirst();
         c.setType(ret);
         return ret;
     }
@@ -310,9 +391,4 @@ public class TypeCheckVisitor extends Visitor<Type> {
         f.setType(Type.PRED);
         return Type.PRED;
     }
-
-    @Override
-    public Type visitVariableDef(VariableDef v) { return null; }
-    @Override
-    public Type visitLocalVarDef(LocalVarDef v) { return null; }
 }
